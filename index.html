@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluetooth Data to Arduino</title>
+</head>
+<body>
+    <h2>Enter Source and Destination Coordinates</h2>
+    
+    <form id="numberForm">
+        <label for="input1">Source i: </label>
+        <input type="number" id="input1" min="0" max="9" required>
+        <br><br>
+
+        <label for="input2">Source j: </label>
+        <input type="number" id="input2" min="0" max="9" required>
+        <br><br>
+
+        <label for="input3">Destination i: </label>
+        <input type="number" id="input3" min="0" max="9" required>
+        <br><br>
+
+        <label for="input4">Destination j: </label>
+        <input type="number" id="input4" min="0" max="9" required>
+        <br><br>
+
+        <button type="button" onclick="sendData()">Send to Arduino</button>
+    </form>
+    
+    <p id="status">Status: Not connected</p>
+
+    <script>
+        let bluetoothDevice;
+        let characteristic;
+
+        // Function to send data to Arduino
+        async function sendData() {
+            const num1 = document.getElementById('input1').value;
+            const num2 = document.getElementById('input2').value;
+            const num3 = document.getElementById('input3').value;
+            const num4 = document.getElementById('input4').value;
+
+            // Form the string with dot separators
+            const dataString = `${num1}.${num2}.${num3}.${num4}`;
+
+            // If not connected, connect to the Bluetooth device
+            if (!bluetoothDevice) {
+                try {
+                    await connectBluetooth();
+                } catch (error) {
+                    document.getElementById('status').innerText = 'Status: Connection failed';
+                    return;
+                }
+            }
+
+            // Convert the string to bytes and send it
+            const encoder = new TextEncoder();
+            const data = encoder.encode(dataString);
+
+            try {
+                await characteristic.writeValue(data);
+                document.getElementById('status').innerText = `Status: Sent ${dataString}`;
+            } catch (error) {
+                document.getElementById('status').innerText = 'Status: Failed to send data';
+            }
+        }
+
+        // Function to connect to the Bluetooth device
+        async function connectBluetooth() {
+            try {
+                document.getElementById('status').innerText = 'Status: Connecting...';
+                
+                // Request Bluetooth device (HC-05 should show up here)
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'HC-05' }],  // Adjust the name to match your device
+                    optionalServices: ['00001101-0000-1000-8000-00805f9b34fb']  // UART UUID for HC-05
+                });
+                
+                // Connect to the device and get the service/characteristic
+                const server = await bluetoothDevice.gatt.connect();
+                const service = await server.getPrimaryService('00001101-0000-1000-8000-00805f9b34fb');
+                characteristic = await service.getCharacteristic('00001101-0000-1000-8000-00805f9b34fb');
+
+                document.getElementById('status').innerText = 'Status: Connected';
+            } catch (error) {
+                document.getElementById('status').innerText = 'Status: Failed to connect';
+                throw error;
+            }
+        }
+    </script>
+</body>
+</html>
